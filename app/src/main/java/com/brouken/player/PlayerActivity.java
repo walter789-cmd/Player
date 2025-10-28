@@ -227,44 +227,57 @@ public class PlayerActivity extends Activity {
             setContentView(R.layout.activity_player_textureview);
         } else {
             setContentView(R.layout.activity_player);
+            // --- TRUE RAW PASSTHROUGH EXOPLAYER INITIALIZATION (MEDIA3) ---
+RenderersFactory renderersFactory = new DefaultRenderersFactory(this)
+        .setEnableAudioTrackPlaybackParams(true)
+        .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+        .setEnableAudioOffload(true); // Enables hardware offload if device supports it
 
-// ===========================
-// ✅ ExoPlayer True RAW Passthrough Setup
-// ===========================
-
-// Build custom AudioSink for raw bitstream passthrough
-com.google.android.exoplayer2.audio.DefaultAudioSink audioSink =
-        new com.google.android.exoplayer2.audio.DefaultAudioSink.Builder()
-                .setEnableFloatOutput(false) // disable float PCM
-                .setOffloadMode(com.google.android.exoplayer2.audio.DefaultAudioSink.OFFLOAD_MODE_ENABLED)
-                .setEnableAudioTrackPlaybackParams(true)
-                .build();
-
-// Create ExoPlayer instance with passthrough-enabled sink
-player = new com.google.android.exoplayer2.ExoPlayer.Builder(this)
-        .setAudioSink(audioSink)
+player = new ExoPlayer.Builder(this, renderersFactory)
+        .setAudioAttributes(
+                new AudioAttributes.Builder()
+                        .setUsage(C.USAGE_MEDIA)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                        .build(),
+                /* handleAudioFocus= */ true)
+        .setHandleAudioBecomingNoisy(true)
         .build();
 
-// Audio attributes (for movies/media)
-com.google.android.exoplayer2.audio.AudioAttributes audioAttributes =
-        new com.google.android.exoplayer2.audio.AudioAttributes.Builder()
-                .setUsage(com.google.android.exoplayer2.C.USAGE_MEDIA)
-                .setContentType(com.google.android.exoplayer2.C.AUDIO_CONTENT_TYPE_MOVIE)
-                .build();
+// Enable full passthrough (if supported by Android box)
+player.setAudioOffloadSchedulingEnabled(true);
 
-player.setAudioAttributes(audioAttributes, true);
+// Optional: boost buffer for heavy formats like TrueHD/DTS:X
+player.setSeekParameters(SeekParameters.CLOSEST_SYNC);
 
-// Optional: show format info when passthrough activates
-player.addListener(new com.google.android.exoplayer2.Player.Listener() {
+// Attach player to your existing view
+playerView.setPlayer(player);
+            // ✅ Add player listener for debugging passthrough and codec info
+player.addListener(new Player.Listener() {
     @Override
-    public void onAudioFormatChanged(com.google.android.exoplayer2.Format format) {
-        if (format.sampleMimeType != null) {
-            Toast.makeText(PlayerActivity.this, 
-                "RAW Passthrough: " + format.sampleMimeType, 
-                Toast.LENGTH_SHORT).show();
+    public void onAudioCodecError(Exception audioError) {
+        audioError.printStackTrace();
+        Toast.makeText(PlayerActivity.this, "Audio Codec Error: " + audioError.getMessage(), Toast.LENGTH_LONG).show();
+    }
+
+    @Override
+    public void onAudioSessionIdChanged(int audioSessionId) {
+        Toast.makeText(PlayerActivity.this, "Audio Session: " + audioSessionId, Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onTracksChanged(Tracks tracks) {
+        for (Tracks.Group group : tracks.getGroups()) {
+            for (int i = 0; i < group.length; i++) {
+                Format format = group.getTrackFormat(i);
+                if (MimeTypes.isAudio(format.sampleMimeType)) {
+                    String codec = format.sampleMimeType;
+                    Toast.makeText(PlayerActivity.this, "Audio Codec: " + codec, Toast.LENGTH_SHORT).show();
+                }
+            }
         }
     }
 });
+            
         // ✅ Show format info like HDR, Dolby Vision, Dolby Atmos, DTS-HD MA, DTS:X, etc.
 String formatInfo = "";
 
