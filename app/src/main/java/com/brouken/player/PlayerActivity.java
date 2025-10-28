@@ -227,7 +227,92 @@ public class PlayerActivity extends Activity {
             setContentView(R.layout.activity_player_textureview);
         } else {
             setContentView(R.layout.activity_player);
+
+// ===========================
+// ✅ ExoPlayer True RAW Passthrough Setup
+// ===========================
+
+// Build custom AudioSink for raw bitstream passthrough
+com.google.android.exoplayer2.audio.DefaultAudioSink audioSink =
+        new com.google.android.exoplayer2.audio.DefaultAudioSink.Builder()
+                .setEnableFloatOutput(false) // disable float PCM
+                .setOffloadMode(com.google.android.exoplayer2.audio.DefaultAudioSink.OFFLOAD_MODE_ENABLED)
+                .setEnableAudioTrackPlaybackParams(true)
+                .build();
+
+// Create ExoPlayer instance with passthrough-enabled sink
+player = new com.google.android.exoplayer2.ExoPlayer.Builder(this)
+        .setAudioSink(audioSink)
+        .build();
+
+// Audio attributes (for movies/media)
+com.google.android.exoplayer2.audio.AudioAttributes audioAttributes =
+        new com.google.android.exoplayer2.audio.AudioAttributes.Builder()
+                .setUsage(com.google.android.exoplayer2.C.USAGE_MEDIA)
+                .setContentType(com.google.android.exoplayer2.C.AUDIO_CONTENT_TYPE_MOVIE)
+                .build();
+
+player.setAudioAttributes(audioAttributes, true);
+
+// Optional: show format info when passthrough activates
+player.addListener(new com.google.android.exoplayer2.Player.Listener() {
+    @Override
+    public void onAudioFormatChanged(com.google.android.exoplayer2.Format format) {
+        if (format.sampleMimeType != null) {
+            Toast.makeText(PlayerActivity.this, 
+                "RAW Passthrough: " + format.sampleMimeType, 
+                Toast.LENGTH_SHORT).show();
         }
+    }
+});
+        // ✅ Show format info like HDR, Dolby Vision, Dolby Atmos, DTS-HD MA, DTS:X, etc.
+String formatInfo = "";
+
+if (videoFormat != null) {
+    String mime = videoFormat.sampleMimeType != null ? videoFormat.sampleMimeType.toLowerCase() : "";
+    if (videoFormat.colorInfo != null && videoFormat.colorInfo.hdrStaticInfo != null) {
+        formatInfo += "HDR ";
+    }
+    if (mime.contains("dv")) formatInfo += "Dolby Vision ";
+    if (mime.contains("hdr10")) formatInfo += "HDR10 ";
+    if (mime.contains("hdr10plus")) formatInfo += "HDR10+ ";
+}
+
+if (audioFormat != null) {
+    String mime = audioFormat.sampleMimeType != null ? audioFormat.sampleMimeType.toLowerCase() : "";
+
+    if (mime.contains("eac3")) formatInfo += "Dolby Digital Plus ";
+    if (mime.contains("ac3")) formatInfo += "Dolby Digital ";
+    if (mime.contains("truehd")) formatInfo += "Dolby TrueHD ";
+    if (mime.contains("atmos")) formatInfo += "Dolby Atmos ";
+    if (mime.contains("dts")) {
+        if (mime.contains("dts-hd") || mime.contains("dts_hd") || mime.contains("ma")) {
+            formatInfo += "DTS-HD MA ";
+        } else if (mime.contains("dtsx")) {
+            formatInfo += "DTS:X ";
+        } else {
+            formatInfo += "DTS ";
+        }
+    }
+}
+
+TextView formatText = new TextView(this);
+formatText.setText(formatInfo.trim());
+formatText.setTextSize(16);
+formatText.setTextColor(Color.WHITE);
+formatText.setBackgroundColor(Color.parseColor("#66000000"));
+formatText.setPadding(20, 10, 20, 10);
+
+FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+        FrameLayout.LayoutParams.WRAP_CONTENT,
+        FrameLayout.LayoutParams.WRAP_CONTENT
+);
+params.gravity = Gravity.TOP | Gravity.START;
+
+FrameLayout rootLayout = findViewById(android.R.id.content);
+rootLayout.addView(formatText, params);
+
+new Handler().postDelayed(() -> rootLayout.removeView(formatText), 3000);
 
         if (Build.VERSION.SDK_INT >= 31) {
             Window window = getWindow();
