@@ -113,12 +113,13 @@ import java.util.concurrent.TimeUnit;
 import android.graphics.Color;
 import android.os.Handler;
 import android.view.Gravity;
+
 import android.widget.TextView;
 import android.widget.FrameLayout;
 
-import com.google.android.exoplayer2.Tracks;
-import com.google.android.exoplayer2.Format;
-import com.google.android.exoplayer2.util.MimeTypes;
+import androidx.media3.common.Tracks;
+import androidx.media3.common.Format;
+import androidx.media3.common.MimeTypes;
 
 public class PlayerActivity extends Activity {
 
