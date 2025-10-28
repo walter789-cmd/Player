@@ -1249,7 +1249,7 @@ new Handler().postDelayed(() -> rootLayout.removeView(formatText), 3000);
         if (resultCode == RESULT_OK && alive) {
             initializePlayer();
         }
-    }
+        }
 
     private void handleSubtitles(Uri uri) {
         // Convert subtitles to UTF-8 if necessary
