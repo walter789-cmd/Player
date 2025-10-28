@@ -110,6 +110,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import android.graphics.Color;
+import android.os.Handler;
+import android.view.Gravity;
+import android.widget.TextView;
+import android.widget.FrameLayout;
+
+import com.google.android.exoplayer2.Tracks;
+import com.google.android.exoplayer2.Format;
+import com.google.android.exoplayer2.util.MimeTypes;
 
 public class PlayerActivity extends Activity {
 
@@ -227,41 +236,45 @@ public class PlayerActivity extends Activity {
             setContentView(R.layout.activity_player_textureview);
         } else {
             setContentView(R.layout.activity_player);
-            // --- TRUE RAW PASSTHROUGH EXOPLAYER INITIALIZATION (MEDIA3) ---
-RenderersFactory renderersFactory = new DefaultRenderersFactory(this)
-        .setEnableAudioTrackPlaybackParams(true)
-        .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
-        .setEnableAudioOffload(true); // Enables hardware offload if device supports it
-
+            // ✅ Initialize ExoPlayer with proper audio settings
 player = new ExoPlayer.Builder(this, renderersFactory)
         .setAudioAttributes(
                 new AudioAttributes.Builder()
                         .setUsage(C.USAGE_MEDIA)
                         .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
                         .build(),
-                /* handleAudioFocus= */ true)
+                /* handleAudioFocus= */ true
+        )
         .setHandleAudioBecomingNoisy(true)
         .build();
 
-// Enable full passthrough (if supported by Android box)
-player.setAudioOffloadSchedulingEnabled(true);
+// ✅ Enable full passthrough if Android box supports it
+// (These lines were causing build errors, so keep them commented)
+// .setEnableAudioOffload(true);
+// player.setAudioOffloadSchedulingEnabled(true);
 
-// Optional: boost buffer for heavy formats like TrueHD/DTS:X
+// ✅ Boost buffer for heavy formats like Dolby TrueHD / DTS:X
 player.setSeekParameters(SeekParameters.CLOSEST_SYNC);
 
-// Attach player to your existing view
+// ✅ Attach player to your view
 playerView.setPlayer(player);
-            // ✅ Add player listener for debugging passthrough and codec info
+
+// ✅ Add listener for codec/passthrough debugging
 player.addListener(new Player.Listener() {
-    @Override
+
+    // No @Override here — this is a custom handler
     public void onAudioCodecError(Exception audioError) {
         audioError.printStackTrace();
-        Toast.makeText(PlayerActivity.this, "Audio Codec Error: " + audioError.getMessage(), Toast.LENGTH_LONG).show();
+        Toast.makeText(PlayerActivity.this,
+                "Audio Codec Error: " + audioError.getMessage(),
+                Toast.LENGTH_LONG).show();
     }
 
     @Override
     public void onAudioSessionIdChanged(int audioSessionId) {
-        Toast.makeText(PlayerActivity.this, "Audio Session: " + audioSessionId, Toast.LENGTH_SHORT).show();
+        Toast.makeText(PlayerActivity.this,
+                "Audio Session: " + audioSessionId,
+                Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -271,60 +284,65 @@ player.addListener(new Player.Listener() {
                 Format format = group.getTrackFormat(i);
                 if (MimeTypes.isAudio(format.sampleMimeType)) {
                     String codec = format.sampleMimeType;
-                    Toast.makeText(PlayerActivity.this, "Audio Codec: " + codec, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(PlayerActivity.this,
+                            "Audio Codec: " + codec,
+                            Toast.LENGTH_SHORT).show();
                 }
             }
         }
     }
 });
-            
-        // ✅ Show format info like HDR, Dolby Vision, Dolby Atmos, DTS-HD MA, DTS:X, etc.
+
+// ✅ Show format info like HDR, Dolby Vision, Dolby Atmos, etc.
 String formatInfo = "";
 
+// Get currently selected video and audio format from player
+Format videoFormat = player.getVideoFormat();
+Format audioFormat = player.getAudioFormat();
+
+// 🔹 Video format info
 if (videoFormat != null) {
     String mime = videoFormat.sampleMimeType != null ? videoFormat.sampleMimeType.toLowerCase() : "";
-    if (videoFormat.colorInfo != null && videoFormat.colorInfo.hdrStaticInfo != null) {
-        formatInfo += "HDR ";
-    }
-    if (mime.contains("dv")) formatInfo += "Dolby Vision ";
-    if (mime.contains("hdr10")) formatInfo += "HDR10 ";
+    if (mime.contains("dvhe") || mime.contains("dvh1")) formatInfo += "Dolby Vision ";
     if (mime.contains("hdr10plus")) formatInfo += "HDR10+ ";
+    if (videoFormat.colorInfo != null && videoFormat.colorInfo.hdrStaticInfo != null)
+        formatInfo += "HDR10 ";
 }
 
+// 🔹 Audio format info
 if (audioFormat != null) {
     String mime = audioFormat.sampleMimeType != null ? audioFormat.sampleMimeType.toLowerCase() : "";
-
     if (mime.contains("eac3")) formatInfo += "Dolby Digital Plus ";
     if (mime.contains("ac3")) formatInfo += "Dolby Digital ";
     if (mime.contains("truehd")) formatInfo += "Dolby TrueHD ";
     if (mime.contains("atmos")) formatInfo += "Dolby Atmos ";
     if (mime.contains("dts")) {
-        if (mime.contains("dts-hd") || mime.contains("dts_hd") || mime.contains("ma")) {
+        if (mime.contains("dts-hd") || mime.contains("dts_hd") || mime.contains("ma"))
             formatInfo += "DTS-HD MA ";
-        } else if (mime.contains("dtsx")) {
+        else if (mime.contains("x"))
             formatInfo += "DTS:X ";
-        } else {
+        else
             formatInfo += "DTS ";
-        }
     }
 }
 
+// ✅ Display overlay on screen for 3 seconds
 TextView formatText = new TextView(this);
 formatText.setText(formatInfo.trim());
 formatText.setTextSize(16);
 formatText.setTextColor(Color.WHITE);
 formatText.setBackgroundColor(Color.parseColor("#66000000"));
-formatText.setPadding(20, 10, 20, 10);
+formatText.setPadding(10, 10, 10, 10);
 
-FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
-        FrameLayout.LayoutParams.WRAP_CONTENT,
-        FrameLayout.LayoutParams.WRAP_CONTENT
-);
-params.gravity = Gravity.TOP | Gravity.START;
+FrameLayout.LayoutParams infoParams =
+        new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT);
+infoParams.gravity = Gravity.TOP | Gravity.START;
 
-FrameLayout rootLayout = findViewById(android.R.id.content);
-rootLayout.addView(formatText, params);
+rootLayout.addView(formatText, infoParams);
 
+// Auto-remove after 3 seconds
 new Handler().postDelayed(() -> rootLayout.removeView(formatText), 3000);
 
         if (Build.VERSION.SDK_INT >= 31) {
