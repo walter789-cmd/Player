@@ -237,6 +237,10 @@ public class PlayerActivity extends Activity {
             setContentView(R.layout.activity_player_textureview);
         } else {
             setContentView(R.layout.activity_player);
+            FrameLayout rootLayout = findViewById(android.R.id.content);
+            
+            RenderersFactory renderersFactory = new DefaultRenderersFactory(this)
+        .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER);
             // ✅ Initialize ExoPlayer with proper audio settings
 player = new ExoPlayer.Builder(this, renderersFactory)
         .setAudioAttributes(
