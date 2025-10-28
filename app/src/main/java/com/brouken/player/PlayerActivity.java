@@ -720,6 +720,7 @@ new Handler().postDelayed(() -> rootLayout.removeView(formatText), 3000);
         if (Build.VERSION.SDK_INT > 23) {
             horizontalScrollView.setOnScrollChangeListener((view, i, i1, i2, i3) -> resetHideCallbacks());
         }
+        }
 
         playerView.setControllerVisibilityListener(new PlayerView.ControllerVisibilityListener() {
             @Override
